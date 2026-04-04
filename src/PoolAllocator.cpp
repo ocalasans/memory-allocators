@@ -28,7 +28,13 @@ void *PoolAllocator::Allocate(const std::size_t allocationSize, const std::size_
 
     Node * freePosition = m_freeList.pop();
 
-    assert(freePosition != nullptr && "The pool allocator is full");
+    // If no freed chunks available, allocate from the pool using offset
+    if (freePosition == nullptr) {
+        assert(m_offset < m_totalSize / m_chunkSize && "The pool allocator is full");
+        std::size_t address = (std::size_t) m_start_ptr + m_offset * m_chunkSize;
+        freePosition = (Node *) address;
+        m_offset++;
+    }
 
     m_used += m_chunkSize;
     m_peak = std::max(m_peak, m_used);
@@ -52,10 +58,5 @@ void PoolAllocator::Free(void * ptr) {
 void PoolAllocator::Reset() {
     m_used = 0;
     m_peak = 0;
-    // Create a linked-list with all free positions
-    const int nChunks = m_totalSize / m_chunkSize;
-    for (int i = 0; i < nChunks; ++i) {
-        std::size_t address = (std::size_t) m_start_ptr + i * m_chunkSize;
-        m_freeList.push((Node *) address);
-    }
+    m_offset = 0;
 }

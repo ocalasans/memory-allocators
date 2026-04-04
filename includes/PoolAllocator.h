@@ -10,6 +10,7 @@ private:
 
     void * m_start_ptr = nullptr;
     std::size_t m_chunkSize;
+    std::size_t m_offset = 0;
 public:
     PoolAllocator(const std::size_t totalSize, const std::size_t chunkSize);
 
