@@ -2,6 +2,7 @@
 #include "Utils.h"  /* CalculatePadding */
 #include <stdlib.h>     /* malloc, free */
 #include <algorithm>    /* max */
+#include <cassert>
 #ifdef _DEBUG
 #include <iostream>
 #endif
@@ -14,9 +15,10 @@ StackAllocator::StackAllocator(const std::size_t totalSize)
 void StackAllocator::Init() {
     if (m_start_ptr != nullptr) {
         free(m_start_ptr);
+        m_start_ptr = nullptr;
     }
     m_start_ptr = malloc(m_totalSize);
-    m_offset = 0;
+    Reset();
 }
 
 StackAllocator::~StackAllocator() {
@@ -27,20 +29,18 @@ StackAllocator::~StackAllocator() {
 void* StackAllocator::Allocate(const std::size_t size, const std::size_t alignment) {
     const std::size_t currentAddress = (std::size_t)m_start_ptr + m_offset;
 
-    std::size_t padding = Utils::CalculatePaddingWithHeader(currentAddress, alignment, sizeof (AllocationHeader));
+    std::size_t padding = 0;
+    if (alignment != 0) {
+        padding = Utils::CalculatePadding(currentAddress, alignment);
+    }
 
     if (m_offset + padding + size > m_totalSize) {
         return nullptr;
     }
-    m_offset += padding;
 
+    m_markers.push_back(m_offset);
     const std::size_t nextAddress = currentAddress + padding;
-    const std::size_t headerAddress = nextAddress - sizeof (AllocationHeader);
-    AllocationHeader allocationHeader{padding};
-    AllocationHeader * headerPtr = (AllocationHeader*) headerAddress;
-    *headerPtr = allocationHeader;
-    
-    m_offset += size;
+    m_offset += padding + size;
 
 #ifdef _DEBUG
     std::cout << "A" << "\t@C " << (void*) currentAddress << "\t@R " << (void*) nextAddress << "\tO " << m_offset << "\tP " << padding << std::endl;
@@ -52,16 +52,15 @@ void* StackAllocator::Allocate(const std::size_t size, const std::size_t alignme
 }
 
 void StackAllocator::Free(void *ptr) {
-    // Move offset back to clear address
-    const std::size_t currentAddress = (std::size_t) ptr;
-    const std::size_t headerAddress = currentAddress - sizeof (AllocationHeader);
-    const AllocationHeader * allocationHeader{ (AllocationHeader *) headerAddress};
+    (void)ptr;
+    assert(!m_markers.empty() && "StackAllocator::Free must follow LIFO order");
 
-    m_offset = currentAddress - allocationHeader->padding - (std::size_t) m_start_ptr;
+    m_offset = m_markers.back();
+    m_markers.pop_back();
     m_used = m_offset;
 
 #ifdef _DEBUG
-    std::cout << "F" << "\t@C " << (void*) currentAddress << "\t@F " << (void*) ((char*) m_start_ptr + m_offset) << "\tO " << m_offset << std::endl;
+    std::cout << "F" << "\t@F " << ptr << "\tO " << m_offset << std::endl;
 #endif
 }
 
@@ -69,4 +68,22 @@ void StackAllocator::Reset() {
     m_offset = 0;
     m_used = 0;
     m_peak = 0;
+    m_markers.clear();
+    m_checkpoints.clear();
+}
+
+std::size_t StackAllocator::Push() {
+    m_checkpoints.push_back(m_offset);
+    return m_offset;
+}
+
+void StackAllocator::Pop(const std::size_t marker) {
+    assert(marker <= m_offset && "StackAllocator::Pop marker must be <= current offset");
+
+    while (!m_checkpoints.empty() && m_checkpoints.back() >= marker) {
+        m_checkpoints.pop_back();
+    }
+
+    m_offset = marker;
+    m_used = m_offset;
 }

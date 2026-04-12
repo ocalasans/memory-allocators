@@ -66,7 +66,7 @@ Due to its simplicity, this allocator doesn't allow specific positions of memory
 This is a smart evolution of the Linear Allocator. The idea is to manage the memory as a Stack. So, as before, we keep a pointer to the current memory address and we move it forward for every allocation. However, we also can move it backwards when a free operation is done. As before, we keep the spatial locality principle and the fragmentation is still very low.
 
 ### Data structure
-As I said, we need the pointer (or offset) to keep track of the last allocation. In order to be able to free memory, we also need to store a _header_ for each allocation that tell us the size of the allocated block. Thus, when we free, we know how many positions we have to move back the pointer. 
+The allocator only needs a pointer (or offset) to keep track of the current top of the stack. Rollback points are stored outside the managed block, so allocations do not need a per-allocation header in the returned memory. This avoids wasting padding space and keeps the user-facing memory contiguous.
 
 ![Data structure of a Stack Allocator](https://github.com/mtrebi/memory-allocators/blob/master/docs/images/stack1.png)
 
@@ -80,7 +80,7 @@ Simply move the pointer (or offset) forward and place a header right before the 
 _Complexity: **O(1)**_
 
 ### Free
-Simply read the block size from the header and move the pointer backwards given that size.
+Free is a LIFO rollback. The allocator restores the last saved offset and does not need to inspect any header stored in the allocation itself.
 
 ![Freeing memory in a Stack Allocator](https://github.com/mtrebi/memory-allocators/blob/master/docs/images/stack3.png)
 

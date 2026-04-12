@@ -6,8 +6,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(SOURCES src/Allocator.cpp
    	src/CAllocator.cpp
    	src/LinearAllocator.cpp
-   	src/StackAllocator
-   	src/PoolAllocator
+    	src/StackAllocator.cpp
+    	src/PoolAllocator.cpp
    	src/FreeListAllocator.cpp
    	src/Benchmark.cpp 
 	src/main.cpp)
