@@ -4,6 +4,9 @@
 #include "Allocator.h"
 
 class CAllocator : public Allocator {
+private:
+    bool m_lastWasAligned;
+
 public:
     CAllocator() noexcept;
 
@@ -12,7 +15,7 @@ public:
     virtual void* Allocate(std::size_t size, std::size_t alignment = 0);
 
     virtual void Free(void* ptr);
-    
+
     virtual void Init();
 };
 
